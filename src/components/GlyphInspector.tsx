@@ -44,11 +44,19 @@ function OverlaySection({ currentChar }: { currentChar: string }) {
         <span>Glyph</span>
         <select value={overlay.char ?? '__none__'} onChange={e => setChar(e.target.value)}>
           <option value="__none__">— none —</option>
-          {otherChars.map(c => (
-            <option key={c} value={c}>
-              {c}
-            </option>
-          ))}
+          <optgroup label="Arial reference">
+            <option value="arial:A">A · cap height</option>
+            <option value="arial:M">M · cap, wide</option>
+            <option value="arial:p">p · x-height + descender</option>
+            <option value="arial:t">t · ascender-ish</option>
+          </optgroup>
+          <optgroup label="Project glyph">
+            {otherChars.map(c => (
+              <option key={c} value={c}>
+                {c}
+              </option>
+            ))}
+          </optgroup>
         </select>
       </label>
       <div className={overlay.char ? '' : 'pointer-events-none opacity-40'}>

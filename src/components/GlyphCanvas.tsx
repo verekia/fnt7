@@ -189,7 +189,13 @@ export function GlyphCanvas() {
           <MetricGuides settings={settings} viewBox={viewBox} />
           <SideBearings glyph={glyph} settings={settings} />
           {overlay.layer === 'below' && (
-            <OverlayGlyph overlay={overlay} glyphs={allGlyphs} presets={settings.bezierPresets} />
+            <OverlayGlyph
+              overlay={overlay}
+              glyphs={allGlyphs}
+              presets={settings.bezierPresets}
+              currentGlyph={glyph}
+              settings={settings}
+            />
           )}
           <GlyphShapes
             glyph={glyph}
@@ -200,7 +206,13 @@ export function GlyphCanvas() {
             onShapeDragStart={startShapeDrag}
           />
           {overlay.layer === 'above' && (
-            <OverlayGlyph overlay={overlay} glyphs={allGlyphs} presets={settings.bezierPresets} />
+            <OverlayGlyph
+              overlay={overlay}
+              glyphs={allGlyphs}
+              presets={settings.bezierPresets}
+              currentGlyph={glyph}
+              settings={settings}
+            />
           )}
           {tool === 'select' && (
             <VertexHandles
@@ -397,12 +409,30 @@ function OverlayGlyph({
   overlay,
   glyphs,
   presets,
+  currentGlyph,
+  settings,
 }: {
   overlay: OverlayState
   glyphs: Record<string, Glyph>
   presets: readonly BezierPreset[]
+  currentGlyph: Glyph
+  settings: ProjectSettings
 }) {
   if (!overlay.char) return null
+  // "arial:X" → render the system Arial glyph as a reference guide rather
+  // than a stored project glyph. Centered horizontally in the current
+  // glyph's advance width so the user can use it as a sizing template.
+  if (overlay.char.startsWith('arial:')) {
+    const ch = overlay.char.slice('arial:'.length)
+    return (
+      <ArialReference
+        ch={ch}
+        overlay={overlay}
+        advanceWidth={currentGlyph.advanceWidth}
+        unitsPerEm={settings.unitsPerEm}
+      />
+    )
+  }
   const overlayGlyph = glyphs[overlay.char]
   if (!overlayGlyph) return null
   const { shapes } = resolveGlyphRender(overlayGlyph, glyphs)
@@ -421,6 +451,41 @@ function OverlayGlyph({
           vectorEffect="non-scaling-stroke"
         />
       ))}
+    </g>
+  )
+}
+
+function ArialReference({
+  ch,
+  overlay,
+  advanceWidth,
+  unitsPerEm,
+}: {
+  ch: string
+  overlay: OverlayState
+  advanceWidth: number
+  unitsPerEm: number
+}) {
+  const isFill = overlay.style === 'fill'
+  // Render at font-size = em so Arial's natural cap/x-height/descender land
+  // at roughly 717/519/-207 — close to the project defaults (700/500/-200).
+  // The inner scale(1, -1) un-flips the parent's y-axis flip so the glyph
+  // reads right-side up while the baseline stays at font-y=0.
+  return (
+    <g opacity={overlay.opacity} pointerEvents="none" transform="scale(1, -1)">
+      <text
+        x={advanceWidth / 2}
+        y={0}
+        textAnchor="middle"
+        fontFamily='Arial, "Helvetica Neue", Helvetica, sans-serif'
+        fontSize={unitsPerEm}
+        fill={isFill ? 'var(--color-accent)' : 'none'}
+        stroke={isFill ? 'none' : 'var(--color-accent)'}
+        strokeWidth={6}
+        vectorEffect="non-scaling-stroke"
+      >
+        {ch}
+      </text>
     </g>
   )
 }
