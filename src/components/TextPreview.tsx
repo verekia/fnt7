@@ -1,4 +1,4 @@
-import { resolveGlyphRender, shapeToPath } from '../lib/glyph'
+import { glyphCombinedPath, resolveGlyphRender } from '../lib/glyph'
 import { useStore } from '../store'
 
 import type { BezierPreset, Glyph, ProjectSettings } from '../types'
@@ -95,11 +95,10 @@ function GlyphAt({
   x: number
 }) {
   const { shapes } = resolveGlyphRender(glyph, glyphs)
+  const d = glyphCombinedPath(shapes, presets)
   return (
     <g transform={`translate(${x}, 0)`}>
-      {shapes.map(s => (
-        <path key={s.id} d={shapeToPath(s, presets)} fill="currentColor" />
-      ))}
+      <path d={d} fill="currentColor" fillRule="evenodd" />
     </g>
   )
 }

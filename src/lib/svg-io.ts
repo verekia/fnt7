@@ -1,7 +1,7 @@
 import { DEFAULT_SETTINGS } from '../store'
 import { GLYPH_CHARS } from '../types'
 import { fmt } from './geometry'
-import { resolveGlyphRender, shapeToPath } from './glyph'
+import { glyphCombinedPath, resolveGlyphRender, shapeToPath } from './glyph'
 
 import type { BezierPreset, Glyph, Point, ProjectSettings, Shape } from '../types'
 
@@ -168,6 +168,15 @@ export function serializeProject(
       `transform="translate(${fmt(ox)}, 0)"`,
     ].join(' ')
     body.push(`  <g ${glyphAttrs}>`)
+    if (g.shapes.length > 0) {
+      // Single visible path with even-odd fill: nested contours read as holes
+      // regardless of the user's draw direction, matching the editor canvas
+      // and the OTF export's winding-corrected output.
+      const combinedD = glyphCombinedPath(g.shapes, settings.bezierPresets)
+      body.push(`    <path d="${combinedD}" fill="currentColor" fill-rule="evenodd" />`)
+    }
+    // Per-contour metadata, hidden from rendering but read back by parseProject
+    // (anything with `data-f7-points` is recognized as a contour).
     for (const shape of g.shapes) {
       body.push('    ' + serializeShape(shape, settings.bezierPresets))
     }
@@ -185,7 +194,7 @@ export function serializeProject(
 
 function serializeShape(shape: Shape, presets: readonly BezierPreset[]): string {
   const d = shapeToPath(shape, presets)
-  const parts = [`<path`, `d="${d}"`, `fill="currentColor"`]
+  const parts = [`<path`, `d="${d}"`, `display="none"`]
   parts.push(`data-f7-shape-id="${escapeAttr(shape.id)}"`)
   parts.push(`data-f7-points="${pointsToAttr(shape.points)}"`)
   if (shape.bezierRef !== null) {

@@ -1,4 +1,4 @@
-import { resolveGlyphRender, shapeToPath } from '../lib/glyph'
+import { glyphCombinedPath, resolveGlyphRender } from '../lib/glyph'
 import { useStore } from '../store'
 import { GLYPH_CHARS, uppercaseFallbackChar } from '../types'
 
@@ -61,12 +61,11 @@ function GlyphThumbnail({ shapes, settings }: GlyphThumbnailProps) {
   const top = -settings.ascender
   const h = settings.ascender - settings.descender
   const w = settings.unitsPerEm
+  const d = glyphCombinedPath(shapes, settings.bezierPresets)
   return (
     <svg viewBox={`0 ${top} ${w} ${h}`} className="absolute inset-2 h-[calc(100%-16px)] w-[calc(100%-16px)]">
       <g transform="scale(1, -1)">
-        {shapes.map(s => (
-          <path key={s.id} d={shapeToPath(s, settings.bezierPresets)} fill="currentColor" />
-        ))}
+        <path d={d} fill="currentColor" fillRule="evenodd" />
       </g>
     </svg>
   )

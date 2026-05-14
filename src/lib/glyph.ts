@@ -47,6 +47,108 @@ export function shapeToPath(shape: Shape, presets: readonly BezierPreset[]): str
 }
 
 /**
+ * Concatenate every contour of a glyph into one `d` attribute. Combined with
+ * `fill-rule="evenodd"` this gives correct hole rendering for any winding
+ * direction the user drew the contours in: stacked closed paths subtract.
+ */
+export function glyphCombinedPath(shapes: readonly Shape[], presets: readonly BezierPreset[]): string {
+  return shapes.map(s => shapeToPath(s, presets)).join(' ')
+}
+
+/**
+ * Signed area of a polygon in font-design coords (y up). Positive = CCW,
+ * negative = CW. Uses the shoelace formula on the raw vertices — corner
+ * rounding doesn't change the winding direction, so we can ignore the bezier
+ * sub-paths and operate on the polygon hull.
+ */
+export function signedArea(points: readonly Point[]): number {
+  let area = 0
+  const n = points.length
+  for (let i = 0; i < n; i++) {
+    const [x1, y1] = points[i]
+    const [x2, y2] = points[(i + 1) % n]
+    area += x1 * y2 - x2 * y1
+  }
+  return area / 2
+}
+
+/**
+ * Standard ray-casting point-in-polygon test. Returns true if `point` is
+ * strictly inside the polygon defined by `polygon`. Points on the boundary
+ * are unspecified — fine for our use (we test contour anchor points which
+ * sit on their own outline, not on the parent's outline).
+ */
+export function pointInPolygon(point: Point, polygon: readonly Point[]): boolean {
+  const [x, y] = point
+  let inside = false
+  const n = polygon.length
+  for (let i = 0, j = n - 1; i < n; j = i++) {
+    const [xi, yi] = polygon[i]
+    const [xj, yj] = polygon[j]
+    const intersect = yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi
+    if (intersect) inside = !inside
+  }
+  return inside
+}
+
+/**
+ * Nesting depth of each contour in a glyph: depth 0 is outermost, depth 1 is
+ * inside one parent, etc. Used to decide which contours need their winding
+ * direction flipped for the OTF export (rasterizers use the non-zero rule, so
+ * holes only render when nested contours are wound opposite to their parent).
+ */
+export function contourDepths(shapes: readonly Shape[]): number[] {
+  return shapes.map((s, i) => {
+    if (s.points.length < 3) return 0
+    const probe = s.points[0]
+    let depth = 0
+    for (let j = 0; j < shapes.length; j++) {
+      if (j === i) continue
+      const other = shapes[j]
+      if (other.points.length < 3) continue
+      if (pointInPolygon(probe, other.points)) depth++
+    }
+    return depth
+  })
+}
+
+/**
+ * Return a copy of `shapes` with vertex order reversed on contours whose
+ * winding doesn't match the alternating pattern required for OTF holes:
+ * even-depth contours share one sign, odd-depth contours the opposite. The
+ * visual shape is unchanged — corner rounding is symmetric — only the
+ * traversal direction flips.
+ */
+export function shapesWithCorrectedWinding(shapes: readonly Shape[]): Shape[] {
+  if (shapes.length === 0) return []
+  const depths = contourDepths(shapes)
+  // Baseline: keep the first contour's winding sign; everything else aligns
+  // to the alternating-by-depth pattern relative to it.
+  const baseSign = Math.sign(signedArea(shapes[0].points)) || 1
+  return shapes.map((s, i) => {
+    if (s.points.length < 3) return s
+    const want = depths[i] % 2 === 0 ? baseSign : -baseSign
+    const actual = Math.sign(signedArea(s.points)) || 1
+    if (want === actual) return s
+    return reverseShape(s)
+  })
+}
+
+function reverseShape(shape: Shape): Shape {
+  const n = shape.points.length
+  const points = shape.points.slice().reverse()
+  let pointBezierRefs: Record<number, string> | undefined
+  if (shape.pointBezierRefs) {
+    pointBezierRefs = {}
+    for (const [k, v] of Object.entries(shape.pointBezierRefs)) {
+      const idx = Number(k)
+      pointBezierRefs[n - 1 - idx] = v
+    }
+  }
+  return { ...shape, points, pointBezierRefs }
+}
+
+/**
  * Return the shapes that should render for `glyph`. If the glyph is lowercase
  * `a-z` and has no shapes of its own, fall back to the matching `A-Z` glyph's
  * shapes. Returns the original shapes (referentially) when no fallback applies,

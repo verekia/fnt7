@@ -1,7 +1,7 @@
 import { Font, Glyph as OTGlyph, Path } from 'opentype.js'
 
 import { GLYPH_CHARS, uppercaseFallbackChar } from '../types'
-import { resolveCornerBezier } from './glyph'
+import { resolveCornerBezier, shapesWithCorrectedWinding } from './glyph'
 
 import type { BezierPreset, Glyph, ProjectSettings, Shape } from '../types'
 
@@ -115,8 +115,11 @@ export function buildFont(settings: ProjectSettings, glyphs: Record<string, Glyp
   const allGlyphs: OTGlyph[] = [notdefGlyph, spaceGlyph]
   for (const ch of GLYPH_CHARS) {
     const { shapes, advanceWidth } = resolveShapesForExport(ch, glyphs)
+    // Flip winding on nested contours so holes (B/O/A/...) rasterize correctly
+    // under the rasterizer's non-zero rule. The visual shape is unchanged.
+    const wound = shapesWithCorrectedWinding(shapes)
     const path = new Path()
-    for (const shape of shapes) {
+    for (const shape of wound) {
       const sub = buildOpentypePath(shape, settings.bezierPresets)
       // Append sub's commands onto the combined path so a glyph with multiple
       // contours becomes a single Path with multiple sub-paths.

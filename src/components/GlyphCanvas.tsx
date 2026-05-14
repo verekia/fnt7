@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 
-import { resolveGlyphRender, shapeToPath } from '../lib/glyph'
+import { glyphCombinedPath, resolveGlyphRender, shapeToPath } from '../lib/glyph'
 import { snapToGrid } from '../lib/snap'
 import { useStore } from '../store'
 
@@ -259,14 +259,19 @@ function GlyphShapes({
   selectedShapeId: string | null
   onPick: (id: string | null) => void
 }) {
+  // Body: one combined path with even-odd fill so nested contours read as
+  // holes in the canvas the same way they will in the exported font.
+  const combinedD = glyphCombinedPath(glyph.shapes, settings.bezierPresets)
   return (
     <g>
+      {combinedD && (
+        <path d={combinedD} fill="currentColor" fillOpacity={0.65} fillRule="evenodd" pointerEvents="none" />
+      )}
       {glyph.shapes.map(s => (
         <path
           key={s.id}
           d={shapeToPath(s, settings.bezierPresets)}
-          fill="currentColor"
-          fillOpacity={selectedShapeId === s.id ? 0.85 : 0.6}
+          fill="transparent"
           stroke={selectedShapeId === s.id ? 'var(--color-accent)' : 'transparent'}
           strokeWidth={1}
           vectorEffect="non-scaling-stroke"
