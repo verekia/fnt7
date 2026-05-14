@@ -97,12 +97,16 @@ export function exportFontOtf(): void {
 }
 
 /** Emit a WOFF2 font file to disk. WASM init happens on first call. */
-export async function exportFontWoff2(): Promise<void> {
+export function exportFontWoff2(): void {
+  console.log('[fnt7] WOFF2 export: click reached handler')
   const state = useStore.getState()
-  try {
-    const { filename, bytes, mime } = await exportWoff2(state.settings, state.glyphs)
-    downloadBytes(filename, bytes, mime)
-  } catch (e) {
-    alert(`WOFF2 export failed: ${(e as Error).message}`)
-  }
+  exportWoff2(state.settings, state.glyphs)
+    .then(({ filename, bytes, mime }) => {
+      downloadBytes(filename, bytes, mime)
+      console.log('[fnt7] WOFF2 export: downloaded', filename)
+    })
+    .catch(e => {
+      console.error('[fnt7] WOFF2 export failed:', e)
+      alert(`WOFF2 export failed: ${(e as Error).message}`)
+    })
 }

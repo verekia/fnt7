@@ -52,7 +52,7 @@ export function Topbar() {
         <button onClick={exportFontOtf} title="Export OTF font file">
           OTF
         </button>
-        <button onClick={() => void exportFontWoff2()} title="Export WOFF2 font file">
+        <button onClick={exportFontWoff2} title="Export WOFF2 font file">
           WOFF2
         </button>
       </div>
