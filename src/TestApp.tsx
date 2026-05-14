@@ -2,33 +2,19 @@ import { useEffect, useState } from 'react'
 
 import { Font, parse as parseOpentype } from 'opentype.js'
 
-import { decompressFromWoff2 } from './lib/wawoff2'
-
-const WOFF2_MAGIC = 'wOF2'
-
-const isWoff2 = (bytes: Uint8Array): boolean =>
-  bytes.length >= 4 && String.fromCharCode(bytes[0], bytes[1], bytes[2], bytes[3]) === WOFF2_MAGIC
-
-async function loadFontFromFile(file: File): Promise<{ font: Font; sourceFormat: 'otf' | 'woff2' }> {
+async function loadFontFromFile(file: File): Promise<{ font: Font }> {
   const ab = await file.arrayBuffer()
-  let bytes: Uint8Array = new Uint8Array(ab)
-  let sourceFormat: 'otf' | 'woff2' = 'otf'
-  if (isWoff2(bytes) || /\.woff2$/i.test(file.name)) {
-    sourceFormat = 'woff2'
-    bytes = await decompressFromWoff2(bytes)
-  }
   // Copy into a fresh ArrayBuffer (opentype.parse rejects views over
   // SharedArrayBuffer / unsized ArrayBufferLike).
-  const buffer = new ArrayBuffer(bytes.byteLength)
-  new Uint8Array(buffer).set(bytes)
+  const buffer = new ArrayBuffer(ab.byteLength)
+  new Uint8Array(buffer).set(new Uint8Array(ab))
   const font = parseOpentype(buffer)
-  return { font, sourceFormat }
+  return { font }
 }
 
 interface LoadedFont {
   font: Font
   fileName: string
-  sourceFormat: 'otf' | 'woff2'
 }
 
 export function TestApp() {
@@ -40,8 +26,8 @@ export function TestApp() {
   const handleFile = async (file: File) => {
     setError(null)
     try {
-      const { font, sourceFormat } = await loadFontFromFile(file)
-      setLoaded({ font, fileName: file.name, sourceFormat })
+      const { font } = await loadFontFromFile(file)
+      setLoaded({ font, fileName: file.name })
     } catch (e) {
       setError((e as Error).message)
     }
@@ -74,11 +60,7 @@ export function TestApp() {
           <span className="text-accent font-bold tracking-[1px] [text-shadow:0_0_12px_rgba(255,59,48,0.45)]">
             / FNT7 / inspector
           </span>
-          {loaded && (
-            <span className="text-muted text-[11px] tracking-[0.5px]">
-              {loaded.fileName} · {loaded.sourceFormat.toUpperCase()}
-            </span>
-          )}
+          {loaded && <span className="text-muted text-[11px] tracking-[0.5px]">{loaded.fileName}</span>}
         </div>
         <div className="flex gap-2 py-2">
           <FilePickButton onFile={handleFile} />
@@ -123,7 +105,7 @@ function FilePickButton({ onFile }: { onFile: (file: File) => void }) {
       <span>Load font</span>
       <input
         type="file"
-        accept=".otf,.woff2,font/otf,font/woff2"
+        accept=".otf,font/otf"
         className="hidden"
         onChange={e => {
           const f = e.target.files?.[0]
@@ -139,7 +121,7 @@ function DropZone() {
   return (
     <div className="m-6 grid place-items-center border-2 border-dashed border-[var(--color-line-strong)] p-20">
       <div className="text-center">
-        <p className="text-text mb-2 text-[14px] tracking-[1px] uppercase">Drop an .otf or .woff2 font here</p>
+        <p className="text-text mb-2 text-[14px] tracking-[1px] uppercase">Drop an .otf font here</p>
         <p className="text-muted-2 text-[11px] tracking-[0.4px]">or use the “Load font” button in the topbar</p>
       </div>
     </div>

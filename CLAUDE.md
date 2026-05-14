@@ -24,7 +24,7 @@ Key concepts:
 
 Stack: Next.js 16 (pages router, static export) · React 19 (with React Compiler)
 · TypeScript 6 · Zustand 5 · Tailwind v4 (PostCSS) · `bun test` · oxlint · oxfmt
-· opentype.js (TTF/OTF emit).
+· opentype.js (OTF emit).
 
 ## Package manager: Bun
 
@@ -54,7 +54,7 @@ Other scripts: `build` (produces `out/`), `start`, `typecheck`, `lint`,
   - `glyph.ts` — glyph-level helpers (effective shapes with fallback,
     bezier-preset resolution).
   - `svg-io.ts` — project SVG read/write with `data-f7-*` metadata.
-  - `font-export.ts` — TTF/OTF/WOFF2 emission via opentype.js.
+  - `font-export.ts` — OTF emission via opentype.js.
   - `file-system.ts` — File System API wrapper (Chromium).
   - `file-ops.ts` — high-level New/Open/Save/Export plumbing.
   - `snap.ts` — angle + grid snapping (verbatim from VCT7).

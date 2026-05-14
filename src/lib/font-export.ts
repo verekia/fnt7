@@ -2,7 +2,6 @@ import { Font, Glyph as OTGlyph, Path } from 'opentype.js'
 
 import { GLYPH_CHARS, uppercaseFallbackChar } from '../types'
 import { resolveCornerBezier } from './glyph'
-import { compressToWoff2 } from './wawoff2'
 
 import type { BezierPreset, Glyph, ProjectSettings, Shape } from '../types'
 
@@ -161,21 +160,4 @@ export function exportOtf(settings: ProjectSettings, glyphs: Record<string, Glyp
   const font = buildFont(settings, glyphs)
   const bytes = font.toArrayBuffer()
   return { filename: `${safeFontName(settings.fontName)}.otf`, bytes, mime: 'font/otf' }
-}
-
-/**
- * Export the project as WOFF2. Compression runs in a one-shot Web Worker
- * (see `wawoff2.ts`) so we don't fight wawoff2's broken top-level wrapper.
- */
-export async function exportWoff2(settings: ProjectSettings, glyphs: Record<string, Glyph>): Promise<FontBytes> {
-  const font = buildFont(settings, glyphs)
-  const otfBytes = new Uint8Array(font.toArrayBuffer())
-  console.log('[fnt7] WOFF2: built OTF (%d bytes), spawning worker…', otfBytes.byteLength)
-  const woff2Bytes = await compressToWoff2(otfBytes)
-  console.log('[fnt7] WOFF2: compressed (%d bytes)', woff2Bytes.byteLength)
-  return {
-    filename: `${safeFontName(settings.fontName)}.woff2`,
-    bytes: woff2Bytes.buffer.slice(woff2Bytes.byteOffset, woff2Bytes.byteOffset + woff2Bytes.byteLength) as ArrayBuffer,
-    mime: 'font/woff2',
-  }
 }
