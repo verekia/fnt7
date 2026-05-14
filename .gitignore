@@ -8,3 +8,4 @@ coverage/
 *.log
 .playwright-mcp/
 *.tsbuildinfo
+public/wawoff2/

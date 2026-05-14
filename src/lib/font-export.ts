@@ -2,6 +2,7 @@ import { Font, Glyph as OTGlyph, Path } from 'opentype.js'
 
 import { GLYPH_CHARS, uppercaseFallbackChar } from '../types'
 import { resolveCornerBezier } from './glyph'
+import { compressToWoff2 } from './wawoff2'
 
 import type { BezierPreset, Glyph, ProjectSettings, Shape } from '../types'
 
@@ -162,39 +163,15 @@ export function exportOtf(settings: ProjectSettings, glyphs: Record<string, Glyp
   return { filename: `${safeFontName(settings.fontName)}.otf`, bytes, mime: 'font/otf' }
 }
 
-type CompressFn = (input: Uint8Array) => Promise<Uint8Array>
-
 /**
- * Pull `compress` out of wawoff2 across webpack's CJS-interop variants:
- * sometimes the function lands as a named export on the module namespace,
- * sometimes on the `default` slot, depending on the bundler's interop mode.
- */
-async function getWawoff2Compress(): Promise<CompressFn> {
-  const mod = (await import('wawoff2')) as unknown as Record<string, unknown>
-  const direct = mod.compress
-  if (typeof direct === 'function') return direct as CompressFn
-  const def = mod.default as Record<string, unknown> | undefined
-  if (def && typeof def.compress === 'function') return def.compress as CompressFn
-  throw new Error(`wawoff2.compress not found (module keys: ${Object.keys(mod).join(', ') || '<empty>'})`)
-}
-
-/**
- * Export the project as WOFF2. The path is OTF → wawoff2.compress(), so we
- * pay the WASM init cost only when this entrypoint is used. wawoff2 is
- * dynamically imported to keep it out of the main editor bundle.
+ * Export the project as WOFF2. Compression runs in a one-shot Web Worker
+ * (see `wawoff2.ts`) so we don't fight wawoff2's broken top-level wrapper.
  */
 export async function exportWoff2(settings: ProjectSettings, glyphs: Record<string, Glyph>): Promise<FontBytes> {
   const font = buildFont(settings, glyphs)
   const otfBytes = new Uint8Array(font.toArrayBuffer())
-  console.log('[fnt7] WOFF2: built OTF (%d bytes), loading wawoff2…', otfBytes.byteLength)
-  const compress = await getWawoff2Compress()
-  console.log('[fnt7] WOFF2: compressing…')
-  // Race against a timeout so the user gets feedback if the Emscripten WASM
-  // init silently hangs (rare, but the wrapper has no guard of its own).
-  const woff2Bytes = await Promise.race([
-    compress(otfBytes),
-    new Promise<never>((_, reject) => setTimeout(() => reject(new Error('wawoff2 compress hung for >30s')), 30000)),
-  ])
+  console.log('[fnt7] WOFF2: built OTF (%d bytes), spawning worker…', otfBytes.byteLength)
+  const woff2Bytes = await compressToWoff2(otfBytes)
   console.log('[fnt7] WOFF2: compressed (%d bytes)', woff2Bytes.byteLength)
   return {
     filename: `${safeFontName(settings.fontName)}.woff2`,

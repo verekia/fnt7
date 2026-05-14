@@ -5,10 +5,10 @@
   "description": "FNT7 — a focused editor for stylized A-Z/a-z/0-9 display fonts: named bezier presets with per-glyph and per-vertex references, lowercase-from-uppercase fallback, SVG-as-project-file, TTF/OTF/WOFF2 export.",
   "type": "module",
   "scripts": {
-    "dev": "portless fnt7 next dev --webpack",
+    "dev": "portless fnt7 next dev",
     "build": "next build",
     "start": "serve out",
-    "postinstall": "next typegen",
+    "postinstall": "next typegen && bun run scripts/copy-wawoff2.ts",
     "test": "bun test",
     "test:watch": "bun test --watch",
     "typecheck": "tsc --noEmit",

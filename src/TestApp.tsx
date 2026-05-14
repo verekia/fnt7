@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react'
 
 import { Font, parse as parseOpentype } from 'opentype.js'
 
+import { decompressFromWoff2 } from './lib/wawoff2'
+
 const WOFF2_MAGIC = 'wOF2'
 
 const isWoff2 = (bytes: Uint8Array): boolean =>
@@ -13,8 +15,7 @@ async function loadFontFromFile(file: File): Promise<{ font: Font; sourceFormat:
   let sourceFormat: 'otf' | 'woff2' = 'otf'
   if (isWoff2(bytes) || /\.woff2$/i.test(file.name)) {
     sourceFormat = 'woff2'
-    const { decompress } = await import('wawoff2')
-    bytes = await decompress(bytes)
+    bytes = await decompressFromWoff2(bytes)
   }
   // Copy into a fresh ArrayBuffer (opentype.parse rejects views over
   // SharedArrayBuffer / unsized ArrayBufferLike).
