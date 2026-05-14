@@ -148,15 +148,33 @@ export interface FontBytes {
   mime: string
 }
 
+const safeFontName = (name: string): string => (name || 'fnt7').replace(/[^A-Za-z0-9_-]+/g, '_')
+
 /**
- * Export the project as an OpenType (CFF) font. opentype.js produces CFF-flavored
- * OTF natively; this is the only format we emit directly today. TTF (glyf
- * outlines) and WOFF2 are deliberate follow-ups — they require either a cubic→
- * quadratic conversion (TTF) or a WASM brotli encoder (WOFF2).
+ * Export the project as an OpenType (CFF) font. opentype.js produces
+ * CFF-flavored OTF natively; this is the synchronous emit path. TTF (glyf
+ * outlines) remains a follow-up — it requires a cubic→quadratic conversion
+ * pass that we haven't written yet.
  */
 export function exportOtf(settings: ProjectSettings, glyphs: Record<string, Glyph>): FontBytes {
   const font = buildFont(settings, glyphs)
   const bytes = font.toArrayBuffer()
-  const safeName = (settings.fontName || 'fnt7').replace(/[^A-Za-z0-9_-]+/g, '_')
-  return { filename: `${safeName}.otf`, bytes, mime: 'font/otf' }
+  return { filename: `${safeFontName(settings.fontName)}.otf`, bytes, mime: 'font/otf' }
+}
+
+/**
+ * Export the project as WOFF2. The path is OTF → wawoff2.compress(), so we
+ * pay the WASM init cost only when this entrypoint is used. wawoff2 is
+ * dynamically imported to keep it out of the main editor bundle.
+ */
+export async function exportWoff2(settings: ProjectSettings, glyphs: Record<string, Glyph>): Promise<FontBytes> {
+  const font = buildFont(settings, glyphs)
+  const otfBytes = new Uint8Array(font.toArrayBuffer())
+  const { compress } = await import('wawoff2')
+  const woff2Bytes = await compress(otfBytes)
+  return {
+    filename: `${safeFontName(settings.fontName)}.woff2`,
+    bytes: woff2Bytes.buffer.slice(woff2Bytes.byteOffset, woff2Bytes.byteOffset + woff2Bytes.byteLength) as ArrayBuffer,
+    mime: 'font/woff2',
+  }
 }

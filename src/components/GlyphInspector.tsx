@@ -1,7 +1,8 @@
 import { glyphBBox } from '../lib/glyph'
 import { useStore } from '../store'
+import { GLYPH_CHARS } from '../types'
 
-import type { BezierPreset, Glyph, Shape } from '../types'
+import type { BezierPreset, Glyph, OverlayState, Shape } from '../types'
 
 export function GlyphInspector() {
   const glyph = useStore(s => s.glyphs[s.selectedGlyph])
@@ -18,7 +19,101 @@ export function GlyphInspector() {
   return (
     <div className="space-y-4 px-3.5 pt-3.5">
       <GlyphSection glyph={glyph} />
+      {viewMode === 'single' && <OverlaySection currentChar={glyph.char} />}
       <ShapesSection glyph={glyph} />
+    </div>
+  )
+}
+
+function OverlaySection({ currentChar }: { currentChar: string }) {
+  const overlay = useStore(s => s.overlay)
+  const setOverlay = useStore(s => s.setOverlay)
+  const otherChars = GLYPH_CHARS.filter(c => c !== currentChar)
+
+  const setChar = (raw: string) => setOverlay({ char: raw === '__none__' ? null : raw })
+  const setLayer = (layer: OverlayState['layer']) => setOverlay({ layer })
+  const setStyle = (style: OverlayState['style']) => setOverlay({ style })
+  const setOpacity = (opacity: number) => setOverlay({ opacity })
+
+  return (
+    <section>
+      <h2 className="panel-h2 mb-3 flex items-center gap-1.5 text-[11px] font-bold tracking-[1px] uppercase">
+        <span className="ml-1">Overlay</span>
+      </h2>
+      <label>
+        <span>Glyph</span>
+        <select value={overlay.char ?? '__none__'} onChange={e => setChar(e.target.value)}>
+          <option value="__none__">— none —</option>
+          {otherChars.map(c => (
+            <option key={c} value={c}>
+              {c}
+            </option>
+          ))}
+        </select>
+      </label>
+      <div className={overlay.char ? '' : 'pointer-events-none opacity-40'}>
+        <label>
+          <span>Layer</span>
+          <SegmentedControl
+            value={overlay.layer}
+            options={[
+              { v: 'above', label: 'Above' },
+              { v: 'below', label: 'Below' },
+            ]}
+            onChange={setLayer}
+          />
+        </label>
+        <label>
+          <span>Style</span>
+          <SegmentedControl
+            value={overlay.style}
+            options={[
+              { v: 'fill', label: 'Fill' },
+              { v: 'stroke', label: 'Stroke' },
+            ]}
+            onChange={setStyle}
+          />
+        </label>
+        <label className="mb-0">
+          <span>
+            Opacity <span className="text-muted-2">{overlay.opacity.toFixed(2)}</span>
+          </span>
+          <input
+            type="range"
+            min={0}
+            max={1}
+            step={0.01}
+            value={overlay.opacity}
+            onChange={e => setOpacity(parseFloat(e.target.value))}
+          />
+        </label>
+      </div>
+    </section>
+  )
+}
+
+function SegmentedControl<T extends string>({
+  value,
+  options,
+  onChange,
+}: {
+  value: T
+  options: { v: T; label: string }[]
+  onChange: (v: T) => void
+}) {
+  return (
+    <div className="flex gap-px">
+      {options.map(o => {
+        const active = o.v === value
+        const cls = active
+          ? 'flex-1 bg-accent text-white border-accent !py-1 text-[11px]'
+          : 'flex-1 text-muted !py-1 text-[11px]'
+        return (
+          <button key={o.v} type="button" className={cls} onClick={() => onChange(o.v)}>
+            {o.label}
+          </button>
+        )
+      })}
     </div>
   )
 }

@@ -3,7 +3,7 @@ import { create } from 'zustand'
 import { DEFAULT_METRICS, GLYPH_CHARS } from './types'
 
 import type { FileHandle } from './lib/file-system'
-import type { Drawing, Glyph, ProjectSettings, Shape, Tool, ViewMode, ViewState } from './types'
+import type { Drawing, Glyph, OverlayState, ProjectSettings, Shape, Tool, ViewMode, ViewState } from './types'
 
 const HISTORY_LIMIT = 100
 
@@ -53,6 +53,8 @@ interface State {
   view: ViewState
   /** Text typed into the text-preview mode. */
   previewText: string
+  /** Single-glyph canvas overlay (trace/compare another glyph). */
+  overlay: OverlayState
 
   fileName: string
   fileHandle: FileHandle | null
@@ -70,6 +72,7 @@ interface Actions {
   setSelectedVertex: (idx: number | null) => void
   setView: (v: ViewState) => void
   setPreviewText: (t: string) => void
+  setOverlay: (patch: Partial<OverlayState>) => void
 
   setFileMeta: (name: string, handle: FileHandle | null) => void
   clearDirty: () => void
@@ -123,6 +126,7 @@ export const useStore = create<State & Actions>((set, get) => ({
 
   view: { x: 0, y: 0, scale: 1 },
   previewText: 'The quick brown FOX 0123',
+  overlay: { char: null, layer: 'above', style: 'stroke', opacity: 0.6 },
 
   fileName: '',
   fileHandle: null,
@@ -138,6 +142,7 @@ export const useStore = create<State & Actions>((set, get) => ({
   setSelectedVertex: idx => set({ selectedVertexIndex: idx }),
   setView: v => set({ view: v }),
   setPreviewText: t => set({ previewText: t }),
+  setOverlay: patch => set(state => ({ overlay: { ...state.overlay, ...patch } })),
 
   setFileMeta: (name, handle) => set({ fileName: name, fileHandle: handle }),
   clearDirty: () => set({ dirty: false }),

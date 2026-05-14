@@ -8,7 +8,7 @@ import {
   writeToHandle,
   type FileHandle,
 } from './file-system'
-import { exportOtf } from './font-export'
+import { exportOtf, exportWoff2 } from './font-export'
 import { parseProject, serializeProject } from './svg-io'
 
 const confirmDiscard = (): boolean => {
@@ -93,5 +93,16 @@ export function exportFontOtf(): void {
     downloadBytes(filename, bytes, mime)
   } catch (e) {
     alert(`Export failed: ${(e as Error).message}`)
+  }
+}
+
+/** Emit a WOFF2 font file to disk. WASM init happens on first call. */
+export async function exportFontWoff2(): Promise<void> {
+  const state = useStore.getState()
+  try {
+    const { filename, bytes, mime } = await exportWoff2(state.settings, state.glyphs)
+    downloadBytes(filename, bytes, mime)
+  } catch (e) {
+    alert(`WOFF2 export failed: ${(e as Error).message}`)
   }
 }

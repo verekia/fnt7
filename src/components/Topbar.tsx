@@ -1,4 +1,4 @@
-import { exportFontOtf, newProject, openFile, saveFile, saveFileAs } from '../lib/file-ops'
+import { exportFontOtf, exportFontWoff2, newProject, openFile, saveFile, saveFileAs } from '../lib/file-ops'
 import { useStore } from '../store'
 import { Toolbar } from './Toolbar'
 import { ViewModeSwitch } from './ViewModeSwitch'
@@ -50,7 +50,10 @@ export function Topbar() {
           Save As
         </button>
         <button onClick={exportFontOtf} title="Export OTF font file">
-          Export OTF
+          OTF
+        </button>
+        <button onClick={() => void exportFontWoff2()} title="Export WOFF2 font file">
+          WOFF2
         </button>
       </div>
     </header>

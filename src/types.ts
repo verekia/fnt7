@@ -121,6 +121,23 @@ export interface ViewState {
   scale: number
 }
 
+/**
+ * Single-glyph-canvas overlay: render a second glyph on top of (or below) the
+ * one being edited, tinted with the app accent color at a chosen opacity.
+ * Useful for tracing related glyphs (B over P, b over h) or for sanity-checking
+ * a derived glyph against its source.
+ */
+export interface OverlayState {
+  /** Which glyph to overlay (character from `GLYPH_CHARS`), or null = off. */
+  char: string | null
+  /** Whether the overlay paints above or below the active glyph. */
+  layer: 'above' | 'below'
+  /** Render as a solid fill or as an outline-only stroke. */
+  style: 'fill' | 'stroke'
+  /** 0..1; applied via the SVG element's `opacity` attribute. */
+  opacity: number
+}
+
 /** Active drawing in progress (polygon/line vertices being placed). */
 export interface Drawing {
   type: 'line' | 'polygon' | 'circle'

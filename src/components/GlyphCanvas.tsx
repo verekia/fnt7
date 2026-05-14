@@ -1,19 +1,21 @@
 import { useEffect, useRef, useState } from 'react'
 
-import { shapeToPath } from '../lib/glyph'
+import { resolveGlyphRender, shapeToPath } from '../lib/glyph'
 import { snapToGrid } from '../lib/snap'
 import { useStore } from '../store'
 
-import type { Drawing, Glyph, Point, ProjectSettings } from '../types'
+import type { BezierPreset, Drawing, Glyph, OverlayState, Point, ProjectSettings } from '../types'
 
 const VIEW_PAD = 120
 
 export function GlyphCanvas() {
   const selectedChar = useStore(s => s.selectedGlyph)
   const glyph = useStore(s => s.glyphs[s.selectedGlyph])
+  const allGlyphs = useStore(s => s.glyphs)
   const settings = useStore(s => s.settings)
   const tool = useStore(s => s.tool)
   const drawing = useStore(s => s.drawing)
+  const overlay = useStore(s => s.overlay)
   const selectedShapeId = useStore(s => s.selectedShapeId)
   const selectedVertex = useStore(s => s.selectedVertexIndex)
 
@@ -152,7 +154,13 @@ export function GlyphCanvas() {
         <g transform="scale(1, -1)">
           <MetricGuides settings={settings} viewBox={viewBox} />
           <SideBearings glyph={glyph} settings={settings} />
+          {overlay.layer === 'below' && (
+            <OverlayGlyph overlay={overlay} glyphs={allGlyphs} presets={settings.bezierPresets} />
+          )}
           <GlyphShapes glyph={glyph} settings={settings} selectedShapeId={selectedShapeId} onPick={setSelectedShape} />
+          {overlay.layer === 'above' && (
+            <OverlayGlyph overlay={overlay} glyphs={allGlyphs} presets={settings.bezierPresets} />
+          )}
           {tool === 'select' && (
             <VertexHandles
               glyph={glyph}
@@ -304,6 +312,38 @@ function VertexHandles({
             ))
           : null,
       )}
+    </g>
+  )
+}
+
+function OverlayGlyph({
+  overlay,
+  glyphs,
+  presets,
+}: {
+  overlay: OverlayState
+  glyphs: Record<string, Glyph>
+  presets: readonly BezierPreset[]
+}) {
+  if (!overlay.char) return null
+  const overlayGlyph = glyphs[overlay.char]
+  if (!overlayGlyph) return null
+  const { shapes } = resolveGlyphRender(overlayGlyph, glyphs)
+  if (shapes.length === 0) return null
+
+  const isFill = overlay.style === 'fill'
+  return (
+    <g opacity={overlay.opacity} pointerEvents="none">
+      {shapes.map(s => (
+        <path
+          key={s.id}
+          d={shapeToPath(s, presets)}
+          fill={isFill ? 'var(--color-accent)' : 'none'}
+          stroke={isFill ? 'none' : 'var(--color-accent)'}
+          strokeWidth={6}
+          vectorEffect="non-scaling-stroke"
+        />
+      ))}
     </g>
   )
 }
