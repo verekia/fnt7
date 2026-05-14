@@ -1,0 +1,344 @@
+@import 'tailwindcss';
+
+@theme {
+  --color-bg-0: #0a0b0f;
+  --color-bg-1: #12141a;
+  --color-bg-2: #181b22;
+  --color-bg-3: #21252e;
+  --color-line: #2a2f3a;
+  --color-line-strong: #3a4150;
+  --color-text: #e3e6ec;
+  --color-muted: #7c8593;
+  --color-muted-2: #5a626f;
+  --color-accent: #ff3b30;
+  --color-accent-dim: #4a1a18;
+  --color-accent-2: #ffa39d;
+  --color-signal: #ffb547;
+
+  --font-mono: ui-monospace, 'JetBrains Mono', 'SF Mono', Menlo, Consolas, monospace;
+}
+
+@layer base {
+  html,
+  body,
+  #__next {
+    margin: 0;
+    height: 100%;
+    background: var(--color-bg-0);
+    color: var(--color-text);
+    font:
+      13px/1.45 ui-monospace,
+      'JetBrains Mono',
+      'SF Mono',
+      Menlo,
+      Consolas,
+      monospace;
+    overflow: hidden;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  #__next {
+    display: grid;
+    grid-template-rows: 42px 1fr 24px;
+  }
+
+  button {
+    background: var(--color-bg-2);
+    color: var(--color-text);
+    border: 1px solid var(--color-line);
+    border-radius: 0;
+    font: inherit;
+    padding: 4px 10px;
+    cursor: pointer;
+    letter-spacing: 0.5px;
+    transition:
+      background 0.1s,
+      color 0.1s,
+      border-color 0.1s;
+  }
+  button:hover {
+    background: var(--color-bg-3);
+    border-color: var(--color-line-strong);
+  }
+  button:active {
+    background: var(--color-bg-1);
+  }
+  button:focus-visible {
+    outline: 1px solid var(--color-accent);
+    outline-offset: 1px;
+  }
+  button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  input[type='text'],
+  input[type='number'] {
+    background: var(--color-bg-0);
+    border: 1px solid var(--color-line);
+    color: var(--color-text);
+    font: inherit;
+    padding: 4px 7px;
+    width: 100%;
+    letter-spacing: 0.3px;
+  }
+  input[type='text']:focus,
+  input[type='number']:focus {
+    outline: none;
+    border-color: var(--color-accent);
+    background: #0e0f13;
+  }
+  input[type='number'] {
+    width: 70px;
+    font-variant-numeric: tabular-nums;
+  }
+  input[type='range'] {
+    width: 100%;
+    accent-color: var(--color-accent);
+  }
+  input[type='checkbox'] {
+    accent-color: var(--color-accent);
+  }
+
+  select {
+    background: var(--color-bg-0);
+    color: var(--color-text);
+    border: 1px solid var(--color-line);
+    font: inherit;
+    padding: 4px 7px;
+    width: 100%;
+  }
+
+  label {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-bottom: 10px;
+    font-size: 11px;
+    color: var(--color-muted);
+    letter-spacing: 0.4px;
+  }
+  label > span {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 6px;
+  }
+  label.checkbox {
+    flex-direction: row;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 0;
+    cursor: pointer;
+  }
+  label.checkbox > span {
+    display: inline;
+  }
+}
+
+@layer components {
+  .panel-surface {
+    background-image:
+      linear-gradient(180deg, var(--color-bg-1) 0%, #0f1117 100%),
+      repeating-linear-gradient(
+        0deg,
+        rgba(255, 255, 255, 0.012) 0px,
+        rgba(255, 255, 255, 0.012) 1px,
+        transparent 1px,
+        transparent 3px
+      );
+  }
+  .panel-surface::-webkit-scrollbar {
+    width: 8px;
+  }
+  .panel-surface::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .panel-surface::-webkit-scrollbar-thumb {
+    background: var(--color-bg-3);
+  }
+  .panel-surface::-webkit-scrollbar-thumb:hover {
+    background: var(--color-line-strong);
+  }
+
+  .topbar-surface {
+    background: linear-gradient(180deg, #16191f 0%, #11131a 100%);
+  }
+  .topbar-surface::after {
+    content: '';
+    position: absolute;
+    inset: 0 0 auto 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(255, 59, 48, 0.35), transparent);
+  }
+
+  .panel-h2::before {
+    content: '';
+    width: 6px;
+    height: 6px;
+    background: var(--color-accent);
+    display: inline-block;
+    box-shadow: 0 0 6px rgba(255, 59, 48, 0.6);
+  }
+
+  .statusbar-surface {
+    background: linear-gradient(180deg, #11131a 0%, #0c0e13 100%);
+  }
+  .statusbar-surface > span {
+    position: relative;
+    padding-left: 12px;
+  }
+  .statusbar-surface > span::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 50%;
+    width: 4px;
+    height: 4px;
+    margin-top: -2px;
+    background: var(--color-muted-2);
+  }
+
+  .canvas-surface {
+    background-image: radial-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px);
+    background-size: 22px 22px;
+    background-position: -1px -1px;
+  }
+  .canvas-surface::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: radial-gradient(ellipse at center, transparent 50%, rgba(0, 0, 0, 0.4) 100%);
+  }
+
+  /* Snap-grid lines on the glyph editor canvas. */
+  .grid-line {
+    stroke: var(--color-line);
+    stroke-width: 0.5;
+    opacity: 0.45;
+    vector-effect: non-scaling-stroke;
+    pointer-events: none;
+  }
+
+  /* Font metrics guides on the glyph editor canvas. */
+  .metric-line {
+    stroke: var(--color-line-strong);
+    stroke-width: 0.5;
+    vector-effect: non-scaling-stroke;
+    pointer-events: none;
+  }
+  .metric-line.baseline {
+    stroke: var(--color-accent);
+    stroke-width: 0.8;
+    opacity: 0.7;
+  }
+  .metric-label {
+    fill: var(--color-muted);
+    font-size: 9px;
+    font-family: var(--font-mono);
+    pointer-events: none;
+    user-select: none;
+  }
+
+  /* Side-bearing markers (LSB / advance-width). */
+  .sidebearing-line {
+    stroke: var(--color-signal);
+    stroke-width: 0.5;
+    stroke-dasharray: 4 3;
+    vector-effect: non-scaling-stroke;
+    opacity: 0.6;
+  }
+  .sidebearing-handle {
+    fill: var(--color-bg-0);
+    stroke: var(--color-signal);
+    stroke-width: 1.5;
+    vector-effect: non-scaling-stroke;
+    cursor: ew-resize;
+  }
+
+  .preview-shape {
+    stroke: var(--color-accent);
+    stroke-width: 1.5;
+    fill: none;
+    stroke-dasharray: 6 4;
+    pointer-events: none;
+  }
+  .preview-vertex {
+    fill: var(--color-accent);
+    stroke: #fff;
+    stroke-width: 1;
+    pointer-events: none;
+  }
+  .selection-outline {
+    stroke: var(--color-accent);
+    stroke-width: 1.5;
+    fill: none;
+    stroke-dasharray: 4 3;
+    pointer-events: none;
+    vector-effect: non-scaling-stroke;
+  }
+  .vertex-handle {
+    fill: var(--color-bg-0);
+    stroke: var(--color-accent);
+    stroke-width: 1.5;
+    vector-effect: non-scaling-stroke;
+    pointer-events: all;
+    cursor: move;
+  }
+  .vertex-handle.selected {
+    fill: var(--color-accent);
+    stroke: #fff;
+  }
+
+  .canvas-svg {
+    cursor: crosshair;
+  }
+  .canvas-svg.tool-select {
+    cursor: default;
+  }
+  .canvas-svg.panning {
+    cursor: grabbing;
+  }
+  .canvas-svg.space {
+    cursor: grab;
+  }
+  .canvas-svg.tool-select .shape-hit {
+    cursor: move;
+  }
+  .canvas-svg:not(.tool-select) .shape-hit {
+    pointer-events: none;
+  }
+
+  /* Glyph grid view — one cell per character. */
+  .glyph-cell {
+    position: relative;
+    background: var(--color-bg-1);
+    border: 1px solid var(--color-line);
+    aspect-ratio: 1;
+    cursor: pointer;
+    transition:
+      border-color 0.1s,
+      background 0.1s;
+  }
+  .glyph-cell:hover {
+    border-color: var(--color-line-strong);
+    background: var(--color-bg-2);
+  }
+  .glyph-cell.empty {
+    background-image: repeating-linear-gradient(45deg, transparent 0 6px, rgba(255, 255, 255, 0.02) 6px 7px);
+  }
+  .glyph-cell.fallback {
+    border-style: dashed;
+    border-color: var(--color-muted-2);
+  }
+  .glyph-cell .glyph-char-label {
+    position: absolute;
+    top: 4px;
+    left: 5px;
+    font-size: 9px;
+    color: var(--color-muted-2);
+    letter-spacing: 0.3px;
+    user-select: none;
+  }
+}
