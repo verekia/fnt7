@@ -36,7 +36,7 @@ export function GlyphCanvas() {
   // pointer without snapping to the grab point.
   const dragShapeRef = useRef<{ shapeId: string; origin: Point; startPoints: Point[] } | null>(null)
 
-  const viewBox = computeViewBox(settings)
+  const viewBox = computeViewBox(settings, glyph.advanceWidth)
 
   // Convert client (px) coordinates to font-design coordinates (y up).
   const clientToFont = (clientX: number, clientY: number): Point => {
@@ -244,13 +244,20 @@ interface ViewBox {
   h: number
 }
 
-function computeViewBox(settings: ProjectSettings): ViewBox {
-  // SVG y-down: top of viewBox = -ascender (after the scale(1,-1) flip).
+function computeViewBox(settings: ProjectSettings, advanceWidth: number): ViewBox {
+  // Width / height match an em+pad box, but the box is *shifted* so the
+  // current glyph's horizontal midpoint and the design region's vertical
+  // midpoint sit at the viewBox center. SVG's default preserveAspectRatio
+  // ("xMidYMid meet") then drops that center at the container's center,
+  // so the glyph reads as centered regardless of how wide the panel is.
+  const w = settings.unitsPerEm + VIEW_PAD * 2
+  const h = settings.ascender - settings.descender + VIEW_PAD * 2
+  const designMidY = -(settings.ascender + settings.descender) / 2
   return {
-    x: -VIEW_PAD,
-    y: -settings.ascender - VIEW_PAD,
-    w: settings.unitsPerEm + VIEW_PAD * 2,
-    h: settings.ascender - settings.descender + VIEW_PAD * 2,
+    x: advanceWidth / 2 - w / 2,
+    y: designMidY - h / 2,
+    w,
+    h,
   }
 }
 

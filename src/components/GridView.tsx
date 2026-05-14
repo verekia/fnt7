@@ -34,7 +34,7 @@ interface GlyphCellProps {
 }
 
 function GlyphCell({ glyph, glyphs, settings, onClick }: GlyphCellProps) {
-  const { shapes, isFallback } = resolveGlyphRender(glyph, glyphs)
+  const { shapes, isFallback, advanceWidth } = resolveGlyphRender(glyph, glyphs)
   const isEmpty = shapes.length === 0
   const hasFallback = isFallback
   const cls = `glyph-cell ${isEmpty ? 'empty' : ''} ${hasFallback ? 'fallback' : ''}`.trim()
@@ -42,7 +42,7 @@ function GlyphCell({ glyph, glyphs, settings, onClick }: GlyphCellProps) {
   return (
     <button type="button" className={cls} onClick={onClick} title={glyph.char}>
       <span className="glyph-char-label">{glyph.char}</span>
-      {!isEmpty && <GlyphThumbnail shapes={shapes} settings={settings} />}
+      {!isEmpty && <GlyphThumbnail shapes={shapes} settings={settings} advanceWidth={advanceWidth} />}
       {isEmpty && (
         <div className="text-muted-2 absolute inset-0 grid place-items-center text-2xl font-bold opacity-30">
           {uppercaseFallbackChar(glyph.char) ?? glyph.char}
@@ -55,15 +55,20 @@ function GlyphCell({ glyph, glyphs, settings, onClick }: GlyphCellProps) {
 interface GlyphThumbnailProps {
   shapes: readonly Shape[]
   settings: ProjectSettings
+  advanceWidth: number
 }
 
-function GlyphThumbnail({ shapes, settings }: GlyphThumbnailProps) {
-  const top = -settings.ascender
+function GlyphThumbnail({ shapes, settings, advanceWidth }: GlyphThumbnailProps) {
+  // Center the viewBox on the glyph's advance midpoint so each cell shows
+  // the artwork in the middle, not flush-left. Width stays at em so glyphs
+  // keep a consistent relative scale across cells.
   const h = settings.ascender - settings.descender
   const w = settings.unitsPerEm
+  const x = advanceWidth / 2 - w / 2
+  const top = -settings.ascender
   const d = glyphCombinedPath(shapes, settings.bezierPresets)
   return (
-    <svg viewBox={`0 ${top} ${w} ${h}`} className="absolute inset-2 h-[calc(100%-16px)] w-[calc(100%-16px)]">
+    <svg viewBox={`${x} ${top} ${w} ${h}`} className="absolute inset-2 h-[calc(100%-16px)] w-[calc(100%-16px)]">
       <g transform="scale(1, -1)">
         <path d={d} fill="currentColor" fillRule="evenodd" />
       </g>
