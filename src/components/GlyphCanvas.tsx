@@ -30,6 +30,11 @@ export function GlyphCanvas() {
   const svgRef = useRef<SVGSVGElement>(null)
   const [hoverPoint, setHoverPoint] = useState<Point | null>(null)
   const [draggingVertex, setDraggingVertex] = useState<{ shapeId: string; index: number } | null>(null)
+  // Shape-level drag state: original points + the cursor position where the
+  // drag started, both in font coords. We delta the whole contour by
+  // (currentCursor - startCursor) on every move so the contour follows the
+  // pointer without snapping to the grab point.
+  const dragShapeRef = useRef<{ shapeId: string; origin: Point; startPoints: Point[] } | null>(null)
 
   const viewBox = computeViewBox(settings)
 
@@ -79,10 +84,38 @@ export function GlyphCanvas() {
         )
         updateShape(selectedChar, shape.id, { points: nextPoints })
       }
+      return
+    }
+    const ds = dragShapeRef.current
+    if (ds) {
+      const dx = p[0] - ds.origin[0]
+      const dy = p[1] - ds.origin[1]
+      const nextPoints = ds.startPoints.map(([x, y]) => [x + dx, y + dy] as Point)
+      updateShape(selectedChar, ds.shapeId, { points: nextPoints })
     }
   }
 
-  const handlePointerUp = () => setDraggingVertex(null)
+  const handlePointerUp = () => {
+    setDraggingVertex(null)
+    dragShapeRef.current = null
+  }
+
+  const startShapeDrag = (shapeId: string, e: React.PointerEvent<SVGPathElement>) => {
+    const shape = glyph.shapes.find(s => s.id === shapeId)
+    if (!shape) return
+    e.stopPropagation()
+    setSelectedShape(shapeId)
+    setSelectedVertex(null)
+    const origin = clientToFont(e.clientX, e.clientY)
+    dragShapeRef.current = {
+      shapeId,
+      origin,
+      startPoints: shape.points.map(([x, y]) => [x, y] as Point),
+    }
+    // Capture so the move events keep coming even if the cursor leaves
+    // the path or the SVG container during the drag.
+    ;(e.target as Element).setPointerCapture?.(e.pointerId)
+  }
 
   const finalizePolygon = (points: readonly Point[]) => {
     if (points.length >= 3) {
@@ -152,12 +185,20 @@ export function GlyphCanvas() {
         onPointerLeave={() => setHoverPoint(null)}
       >
         <g transform="scale(1, -1)">
+          {settings.gridVisible && settings.gridSize > 0 && <GridLines settings={settings} viewBox={viewBox} />}
           <MetricGuides settings={settings} viewBox={viewBox} />
           <SideBearings glyph={glyph} settings={settings} />
           {overlay.layer === 'below' && (
             <OverlayGlyph overlay={overlay} glyphs={allGlyphs} presets={settings.bezierPresets} />
           )}
-          <GlyphShapes glyph={glyph} settings={settings} selectedShapeId={selectedShapeId} onPick={setSelectedShape} />
+          <GlyphShapes
+            glyph={glyph}
+            settings={settings}
+            selectedShapeId={selectedShapeId}
+            onPick={setSelectedShape}
+            tool={tool}
+            onShapeDragStart={startShapeDrag}
+          />
           {overlay.layer === 'above' && (
             <OverlayGlyph overlay={overlay} glyphs={allGlyphs} presets={settings.bezierPresets} />
           )}
@@ -166,10 +207,11 @@ export function GlyphCanvas() {
               glyph={glyph}
               selectedShapeId={selectedShapeId}
               selectedVertex={selectedVertex}
-              onPickVertex={(shapeId, idx) => {
+              onPickVertex={(shapeId, idx, e) => {
                 setSelectedShape(shapeId)
                 setSelectedVertex(idx)
                 setDraggingVertex({ shapeId, index: idx })
+                ;(e.target as Element).setPointerCapture?.(e.pointerId)
               }}
             />
           )}
@@ -253,11 +295,15 @@ function GlyphShapes({
   settings,
   selectedShapeId,
   onPick,
+  tool,
+  onShapeDragStart,
 }: {
   glyph: Glyph
   settings: ProjectSettings
   selectedShapeId: string | null
   onPick: (id: string | null) => void
+  tool: 'select' | 'line' | 'polygon' | 'circle'
+  onShapeDragStart: (id: string, e: React.PointerEvent<SVGPathElement>) => void
 }) {
   // Body: one combined path with even-odd fill so nested contours read as
   // holes in the canvas the same way they will in the exported font.
@@ -276,11 +322,36 @@ function GlyphShapes({
           strokeWidth={1}
           vectorEffect="non-scaling-stroke"
           className="shape-hit"
-          onClick={e => {
-            e.stopPropagation()
+          onPointerDown={e => {
+            if (tool !== 'select' || e.button !== 0) return
             onPick(s.id)
+            onShapeDragStart(s.id, e)
           }}
         />
+      ))}
+    </g>
+  )
+}
+
+function GridLines({ settings, viewBox }: { settings: ProjectSettings; viewBox: ViewBox }) {
+  const step = settings.gridSize
+  // Cover the visible viewBox in font coords (y is flipped at the parent group,
+  // but viewBox numbers are screen-space-y so vertical lines span the full y range).
+  const xStart = Math.floor(viewBox.x / step) * step
+  const xEnd = viewBox.x + viewBox.w
+  const yStart = Math.floor(viewBox.y / step) * step
+  const yEnd = viewBox.y + viewBox.h
+  const verts: number[] = []
+  for (let x = xStart; x <= xEnd; x += step) verts.push(x)
+  const horiz: number[] = []
+  for (let y = yStart; y <= yEnd; y += step) horiz.push(y)
+  return (
+    <g pointerEvents="none">
+      {verts.map(x => (
+        <line key={`v${x}`} x1={x} y1={viewBox.y} x2={x} y2={yEnd} className="grid-line" />
+      ))}
+      {horiz.map(y => (
+        <line key={`h${y}`} x1={viewBox.x} y1={y} x2={xEnd} y2={y} className="grid-line" />
       ))}
     </g>
   )
@@ -295,7 +366,7 @@ function VertexHandles({
   glyph: Glyph
   selectedShapeId: string | null
   selectedVertex: number | null
-  onPickVertex: (shapeId: string, idx: number) => void
+  onPickVertex: (shapeId: string, idx: number, e: React.PointerEvent<SVGCircleElement>) => void
 }) {
   return (
     <g>
@@ -310,8 +381,9 @@ function VertexHandles({
                 className={`vertex-handle ${selectedVertex === i ? 'selected' : ''}`}
                 vectorEffect="non-scaling-stroke"
                 onPointerDown={e => {
+                  if (e.button !== 0) return
                   e.stopPropagation()
-                  onPickVertex(shape.id, i)
+                  onPickVertex(shape.id, i, e)
                 }}
               />
             ))

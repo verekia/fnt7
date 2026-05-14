@@ -212,6 +212,15 @@
     background: radial-gradient(ellipse at center, transparent 50%, rgba(0, 0, 0, 0.4) 100%);
   }
 
+  /* Snap-grid lines on the glyph editor canvas. */
+  .grid-line {
+    stroke: var(--color-line);
+    stroke-width: 0.5;
+    opacity: 0.45;
+    vector-effect: non-scaling-stroke;
+    pointer-events: none;
+  }
+
   /* Font metrics guides on the glyph editor canvas. */
   .metric-line {
     stroke: var(--color-line-strong);
