@@ -226,6 +226,12 @@ function ShapesSection({ glyph }: { glyph: Glyph }) {
 
 const INHERIT = '__inherit__'
 
+const presetLabel = (p: BezierPreset): string => {
+  const mode = p.mode ?? 'proportional'
+  const tag = mode === 'absolute' ? 'abs' : mode === 'relative' ? 'rel' : 'prop'
+  return `${p.name} (${tag} ${p.value.toFixed(mode === 'absolute' ? 0 : 2)})`
+}
+
 function ShapeBezierRow({
   shape,
   presets,
@@ -249,7 +255,7 @@ function ShapeBezierRow({
         <option value={INHERIT}>Default ({presets[0]?.name ?? '—'})</option>
         {presets.map(p => (
           <option key={p.name} value={p.name}>
-            {p.name} ({p.value.toFixed(2)})
+            {presetLabel(p)}
           </option>
         ))}
       </select>

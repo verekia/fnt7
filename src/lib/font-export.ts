@@ -1,6 +1,7 @@
 import { Font, Glyph as OTGlyph, Path } from 'opentype.js'
 
 import { GLYPH_CHARS, uppercaseFallbackChar } from '../types'
+import { resolveCornerRadius } from './geometry'
 import { resolveCornerBezier, shapesWithCorrectedWinding } from './glyph'
 
 import type { BezierPreset, Glyph, ProjectSettings, Shape } from '../types'
@@ -11,17 +12,14 @@ import type { BezierPreset, Glyph, ProjectSettings, Shape } from '../types'
  * path commands (moveTo/lineTo/quadTo/close) instead of returning an SVG `d`.
  *
  * Coordinates are passed through unchanged: opentype.js uses font-design
- * space (y up), which matches our internal convention.
+ * space (y up), which matches our internal convention. `canvasRef` carries
+ * `unitsPerEm` so `'relative'` mode resolves against the project em size.
  */
-function buildOpentypePath(shape: Shape, presets: readonly BezierPreset[]): Path {
+function buildOpentypePath(shape: Shape, presets: readonly BezierPreset[], canvasRef: number): Path {
   const path = new Path()
   const pts = shape.points
   const n = pts.length
   if (n < 3) return path
-
-  // Resolve t per corner once.
-  const ts: number[] = []
-  for (let i = 0; i < n; i++) ts.push(resolveCornerBezier(shape, i, presets))
 
   interface CornerSeg {
     a: [number, number]
@@ -33,14 +31,14 @@ function buildOpentypePath(shape: Shape, presets: readonly BezierPreset[]): Path
     const prev = pts[(i - 1 + n) % n]
     const cur = pts[i]
     const next = pts[(i + 1) % n]
-    const t = ts[i]
+    const spec = resolveCornerBezier(shape, i, presets)
     const inDx = cur[0] - prev[0]
     const inDy = cur[1] - prev[1]
     const inLen = Math.hypot(inDx, inDy) || 1
     const outDx = next[0] - cur[0]
     const outDy = next[1] - cur[1]
     const outLen = Math.hypot(outDx, outDy) || 1
-    const radius = Math.max(0, Math.min(1, t)) * 0.5 * Math.min(inLen, outLen)
+    const radius = resolveCornerRadius(spec, inLen, outLen, canvasRef)
     corners.push({
       a: [cur[0] - (inDx / inLen) * radius, cur[1] - (inDy / inLen) * radius],
       b: [cur[0] + (outDx / outLen) * radius, cur[1] + (outDy / outLen) * radius],
@@ -120,7 +118,7 @@ export function buildFont(settings: ProjectSettings, glyphs: Record<string, Glyp
     const wound = shapesWithCorrectedWinding(shapes)
     const path = new Path()
     for (const shape of wound) {
-      const sub = buildOpentypePath(shape, settings.bezierPresets)
+      const sub = buildOpentypePath(shape, settings.bezierPresets, settings.unitsPerEm)
       // Append sub's commands onto the combined path so a glyph with multiple
       // contours becomes a single Path with multiple sub-paths.
       for (const cmd of sub.commands) path.commands.push(cmd)

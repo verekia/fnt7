@@ -326,7 +326,7 @@ function GlyphShapes({
 }) {
   // Body: one combined path with even-odd fill so nested contours read as
   // holes in the canvas the same way they will in the exported font.
-  const combinedD = glyphCombinedPath(glyph.shapes, settings.bezierPresets)
+  const combinedD = glyphCombinedPath(glyph.shapes, settings.bezierPresets, settings.unitsPerEm)
   return (
     <g>
       {combinedD && (
@@ -335,7 +335,7 @@ function GlyphShapes({
       {glyph.shapes.map(s => (
         <path
           key={s.id}
-          d={shapeToPath(s, settings.bezierPresets)}
+          d={shapeToPath(s, settings.bezierPresets, settings.unitsPerEm)}
           fill="transparent"
           stroke={selectedShapeId === s.id ? 'var(--color-accent)' : 'transparent'}
           strokeWidth={1}
@@ -451,7 +451,7 @@ function OverlayGlyph({
       {shapes.map(s => (
         <path
           key={s.id}
-          d={shapeToPath(s, presets)}
+          d={shapeToPath(s, presets, settings.unitsPerEm)}
           fill={isFill ? 'var(--color-accent)' : 'none'}
           stroke={isFill ? 'none' : 'var(--color-accent)'}
           strokeWidth={6}
