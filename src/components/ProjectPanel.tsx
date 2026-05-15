@@ -155,12 +155,16 @@ function PresetRow({
   onDelete,
 }: PresetRowProps) {
   const [localName, setLocalName] = useState(name)
-  // Absolute mode's value is a radius in font units. Cap the slider at half
-  // unitsPerEm — the user's chosen "half the max" — but allow typing higher
-  // values via the number input (renderer clamps per-corner anyway).
+  // Slider maxes are tuned so useful values sit near the middle of the
+  // track, not at the very bottom. Absolute caps at unitsPerEm/4 (≈250 in a
+  // standard 1000-upm project), relative caps at 0.5 (50% of the em).
+  // Proportional stays at 1 because its full range is semantically meaningful
+  // (1.0 = "round corner all the way to the half-min-neighbor cap"). The
+  // number input is unconstrained (renderer clamps per-corner anyway).
   const isAbsolute = mode === 'absolute'
-  const sliderMax = isAbsolute ? unitsPerEm / 2 : 1
-  const sliderStep = isAbsolute ? Math.max(1, Math.round(unitsPerEm / 200)) : 0.01
+  const isRelative = mode === 'relative'
+  const sliderMax = isAbsolute ? unitsPerEm / 4 : isRelative ? 0.5 : 1
+  const sliderStep = isAbsolute ? Math.max(1, Math.round(unitsPerEm / 200)) : isRelative ? 0.005 : 0.01
   const numberStep = isAbsolute ? 1 : 0.01
   return (
     <li className="bg-bg-0 border-line border p-2">
