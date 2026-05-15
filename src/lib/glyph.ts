@@ -2,48 +2,61 @@ import { uppercaseFallbackChar } from '../types'
 import { bbox, pointsToPath } from './geometry'
 
 import type { BezierPreset, Glyph, Point, ProjectSettings, Shape } from '../types'
+import type { BezierSpec } from './geometry'
+
+const ZERO_SPEC: BezierSpec = { mode: 'proportional', value: 0 }
+
+const presetToSpec = (p: BezierPreset): BezierSpec => ({ mode: p.mode ?? 'proportional', value: p.value })
 
 /**
- * Resolve the bezier value for a single corner, walking the
+ * Resolve the bezier *spec* for a single corner, walking the
  * vertex → shape → project-default precedence chain.
  *
- * Returns 0 if the resolved preset is missing — a defensive fallback that
- * preserves geometry rather than throwing when a file has been edited
- * externally and references a preset that no longer exists.
+ * Returns a zero-valued proportional spec if the referenced preset is missing —
+ * a defensive fallback that preserves geometry rather than throwing when a
+ * file has been edited externally and references a preset that no longer
+ * exists.
  */
-export function resolveCornerBezier(shape: Shape, vertexIndex: number, presets: readonly BezierPreset[]): number {
-  const presetByName = (name: string): number | undefined => presets.find(p => p.name === name)?.value
+export function resolveCornerBezier(shape: Shape, vertexIndex: number, presets: readonly BezierPreset[]): BezierSpec {
+  const presetByName = (name: string): BezierPreset | undefined => presets.find(p => p.name === name)
   const vRef = shape.pointBezierRefs?.[vertexIndex]
   if (vRef !== undefined) {
-    const v = presetByName(vRef)
-    if (v !== undefined) return v
+    const p = presetByName(vRef)
+    if (p) return presetToSpec(p)
   }
   if (shape.bezierRef !== null) {
-    const v = presetByName(shape.bezierRef)
-    if (v !== undefined) return v
+    const p = presetByName(shape.bezierRef)
+    if (p) return presetToSpec(p)
   }
-  return presets[0]?.value ?? 0
+  const fallback = presets[0]
+  return fallback ? presetToSpec(fallback) : ZERO_SPEC
 }
 
 /**
- * Build the per-vertex bezier map a shape needs to feed `pointsToPath`. The
- * shape-level ref is rolled into a flat `value` if it differs from the project
- * default; this lets `pointsToPath` treat all corners uniformly.
+ * Build the per-vertex bezier spec map a shape needs to feed `pointsToPath`.
+ * The shape-level ref is rolled into a flat entry per vertex; this lets
+ * `pointsToPath` treat all corners uniformly.
  */
-function buildPerPointBezier(shape: Shape, presets: readonly BezierPreset[]): Record<number, number> {
-  const out: Record<number, number> = {}
+function buildPerPointBezier(shape: Shape, presets: readonly BezierPreset[]): Record<number, BezierSpec> {
+  const out: Record<number, BezierSpec> = {}
   for (let i = 0; i < shape.points.length; i++) {
     out[i] = resolveCornerBezier(shape, i, presets)
   }
   return out
 }
 
-/** Render one shape to an SVG path `d` using the project's preset list. */
-export function shapeToPath(shape: Shape, presets: readonly BezierPreset[]): string {
+/**
+ * Render one shape to an SVG path `d` using the project's preset list.
+ *
+ * `canvasRef` (typically `unitsPerEm`) drives the `'relative'` bezier mode.
+ * Other modes ignore it.
+ */
+export function shapeToPath(shape: Shape, presets: readonly BezierPreset[], canvasRef = 0): string {
   const baseRefName = shape.bezierRef ?? presets[0]?.name
-  const baseValue = (baseRefName ? presets.find(p => p.name === baseRefName)?.value : presets[0]?.value) ?? 0
+  const basePreset = baseRefName ? presets.find(p => p.name === baseRefName) : presets[0]
+  const baseSpec = basePreset ? presetToSpec(basePreset) : ZERO_SPEC
   const perPoint = buildPerPointBezier(shape, presets)
-  return pointsToPath(shape.points, true, baseValue, perPoint)
+  return pointsToPath(shape.points, true, baseSpec, perPoint, canvasRef)
 }
 
 /**
@@ -51,8 +64,8 @@ export function shapeToPath(shape: Shape, presets: readonly BezierPreset[]): str
  * `fill-rule="evenodd"` this gives correct hole rendering for any winding
  * direction the user drew the contours in: stacked closed paths subtract.
  */
-export function glyphCombinedPath(shapes: readonly Shape[], presets: readonly BezierPreset[]): string {
-  return shapes.map(s => shapeToPath(s, presets)).join(' ')
+export function glyphCombinedPath(shapes: readonly Shape[], presets: readonly BezierPreset[], canvasRef = 0): string {
+  return shapes.map(s => shapeToPath(s, presets, canvasRef)).join(' ')
 }
 
 /**

@@ -1,9 +1,9 @@
 import { DEFAULT_SETTINGS } from '../store'
-import { GLYPH_CHARS } from '../types'
+import { BEZIER_MODES, GLYPH_CHARS } from '../types'
 import { fmt } from './geometry'
 import { glyphCombinedPath, resolveGlyphRender, shapeToPath } from './glyph'
 
-import type { BezierPreset, Glyph, Point, ProjectSettings, Shape } from '../types'
+import type { BezierMode, BezierPreset, Glyph, Point, ProjectSettings, Shape } from '../types'
 
 /**
  * Encode a list of points as a `data-f7-points` attribute value. Format is
@@ -60,8 +60,15 @@ const parseBezierPresetsAttr = (raw: string | null): BezierPreset[] | null => {
     const name = typeof obj.name === 'string' ? obj.name.trim() : ''
     const value = typeof obj.value === 'number' && Number.isFinite(obj.value) ? obj.value : NaN
     if (!name || seen.has(name) || !Number.isFinite(value)) continue
+    const rawMode = typeof obj.mode === 'string' ? obj.mode : ''
+    const mode: BezierMode = (BEZIER_MODES as readonly string[]).includes(rawMode)
+      ? (rawMode as BezierMode)
+      : 'proportional'
+    // Absolute mode values are in font units (not bounded), so only clamp the
+    // bounded modes. Negative values clamp to 0 everywhere.
+    const clamped = mode === 'absolute' ? Math.max(0, value) : Math.max(0, Math.min(1, value))
     seen.add(name)
-    out.push({ name, value: Math.max(0, Math.min(1, value)) })
+    out.push(mode === 'proportional' ? { name, value: clamped } : { name, value: clamped, mode })
   }
   return out.length > 0 ? out : null
 }
@@ -172,13 +179,13 @@ export function serializeProject(
       // Single visible path with even-odd fill: nested contours read as holes
       // regardless of the user's draw direction, matching the editor canvas
       // and the OTF export's winding-corrected output.
-      const combinedD = glyphCombinedPath(g.shapes, settings.bezierPresets)
+      const combinedD = glyphCombinedPath(g.shapes, settings.bezierPresets, settings.unitsPerEm)
       body.push(`    <path d="${combinedD}" fill="currentColor" fill-rule="evenodd" />`)
     }
     // Per-contour metadata, hidden from rendering but read back by parseProject
     // (anything with `data-f7-points` is recognized as a contour).
     for (const shape of g.shapes) {
-      body.push('    ' + serializeShape(shape, settings.bezierPresets))
+      body.push('    ' + serializeShape(shape, settings.bezierPresets, settings.unitsPerEm))
     }
     body.push(`  </g>`)
   }
@@ -192,8 +199,8 @@ export function serializeProject(
   ].join('\n')
 }
 
-function serializeShape(shape: Shape, presets: readonly BezierPreset[]): string {
-  const d = shapeToPath(shape, presets)
+function serializeShape(shape: Shape, presets: readonly BezierPreset[], canvasRef: number): string {
+  const d = shapeToPath(shape, presets, canvasRef)
   const parts = [`<path`, `d="${d}"`, `display="none"`]
   parts.push(`data-f7-shape-id="${escapeAttr(shape.id)}"`)
   parts.push(`data-f7-points="${pointsToAttr(shape.points)}"`)

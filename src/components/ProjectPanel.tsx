@@ -1,6 +1,15 @@
 import { useState } from 'react'
 
 import { useStore } from '../store'
+import { BEZIER_MODES } from '../types'
+
+import type { BezierMode } from '../types'
+
+const BEZIER_MODE_LABELS: Record<BezierMode, string> = {
+  proportional: 'Proportional',
+  absolute: 'Radius absolute',
+  relative: 'Radius relative',
+}
 
 export function ProjectPanel() {
   return (
@@ -64,6 +73,7 @@ function NumberLabel({ label, value, onChange }: { label: string; value: number;
 
 function BezierPresetsSection() {
   const presets = useStore(s => s.settings.bezierPresets)
+  const unitsPerEm = useStore(s => s.settings.unitsPerEm)
   const addPreset = useStore(s => s.addBezierPreset)
   const updatePreset = useStore(s => s.updateBezierPreset)
   const deletePreset = useStore(s => s.deleteBezierPreset)
@@ -90,10 +100,13 @@ function BezierPresetsSection() {
             key={p.name}
             name={p.name}
             value={p.value}
+            mode={p.mode ?? 'proportional'}
+            unitsPerEm={unitsPerEm}
             isDefault={i === 0}
             canDelete={presets.length > 1}
             onRename={n => updatePreset(p.name, { name: n })}
             onValueChange={v => updatePreset(p.name, { value: v })}
+            onModeChange={m => updatePreset(p.name, { mode: m })}
             onDelete={() => deletePreset(p.name)}
           />
         ))}
@@ -119,15 +132,40 @@ function BezierPresetsSection() {
 interface PresetRowProps {
   name: string
   value: number
+  mode: BezierMode
+  unitsPerEm: number
   isDefault: boolean
   canDelete: boolean
   onRename: (n: string) => void
   onValueChange: (v: number) => void
+  onModeChange: (m: BezierMode) => void
   onDelete: () => void
 }
 
-function PresetRow({ name, value, isDefault, canDelete, onRename, onValueChange, onDelete }: PresetRowProps) {
+function PresetRow({
+  name,
+  value,
+  mode,
+  unitsPerEm,
+  isDefault,
+  canDelete,
+  onRename,
+  onValueChange,
+  onModeChange,
+  onDelete,
+}: PresetRowProps) {
   const [localName, setLocalName] = useState(name)
+  // Slider maxes are tuned so useful values sit near the middle of the
+  // track, not at the very bottom. Absolute caps at unitsPerEm/4 (≈250 in a
+  // standard 1000-upm project), relative caps at 0.5 (50% of the em).
+  // Proportional stays at 1 because its full range is semantically meaningful
+  // (1.0 = "round corner all the way to the half-min-neighbor cap"). The
+  // number input is unconstrained (renderer clamps per-corner anyway).
+  const isAbsolute = mode === 'absolute'
+  const isRelative = mode === 'relative'
+  const sliderMax = isAbsolute ? unitsPerEm / 4 : isRelative ? 0.5 : 1
+  const sliderStep = isAbsolute ? Math.max(1, Math.round(unitsPerEm / 200)) : isRelative ? 0.005 : 0.01
+  const numberStep = isAbsolute ? 1 : 0.01
   return (
     <li className="bg-bg-0 border-line border p-2">
       <div className="mb-1.5 flex items-center gap-1">
@@ -152,24 +190,40 @@ function PresetRow({ name, value, isDefault, canDelete, onRename, onValueChange,
           ×
         </button>
       </div>
+      <div className="mb-1.5 flex items-center gap-2">
+        <select
+          className="!w-auto !py-0.5 text-[11px]"
+          value={mode}
+          onChange={e => onModeChange(e.target.value as BezierMode)}
+          title="How this preset's value becomes a corner radius"
+        >
+          {BEZIER_MODES.map(m => (
+            <option key={m} value={m}>
+              {BEZIER_MODE_LABELS[m]}
+            </option>
+          ))}
+        </select>
+      </div>
       <div className="flex items-center gap-2">
         <input
           type="range"
           min={0}
-          max={1}
-          step={0.01}
-          value={value}
+          max={sliderMax}
+          step={sliderStep}
+          value={Math.min(value, sliderMax)}
           onChange={e => onValueChange(parseFloat(e.target.value))}
         />
         <input
           type="number"
           min={0}
-          max={1}
-          step={0.01}
+          max={isAbsolute ? undefined : 1}
+          step={numberStep}
           value={value}
           onChange={e => {
             const n = parseFloat(e.target.value)
-            if (Number.isFinite(n)) onValueChange(Math.max(0, Math.min(1, n)))
+            if (!Number.isFinite(n)) return
+            const clamped = isAbsolute ? Math.max(0, n) : Math.max(0, Math.min(1, n))
+            onValueChange(clamped)
           }}
         />
       </div>

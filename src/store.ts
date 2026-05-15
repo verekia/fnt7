@@ -3,7 +3,17 @@ import { create } from 'zustand'
 import { DEFAULT_METRICS, GLYPH_CHARS } from './types'
 
 import type { FileHandle } from './lib/file-system'
-import type { Drawing, Glyph, OverlayState, ProjectSettings, Shape, Tool, ViewMode, ViewState } from './types'
+import type {
+  BezierMode,
+  Drawing,
+  Glyph,
+  OverlayState,
+  ProjectSettings,
+  Shape,
+  Tool,
+  ViewMode,
+  ViewState,
+} from './types'
 
 const HISTORY_LIMIT = 100
 
@@ -81,8 +91,8 @@ interface Actions {
   setProject: (settings: ProjectSettings, glyphs: Record<string, Glyph>) => void
 
   updateSettings: (patch: Partial<ProjectSettings>) => void
-  addBezierPreset: (name: string, value: number) => void
-  updateBezierPreset: (name: string, patch: { name?: string; value?: number }) => void
+  addBezierPreset: (name: string, value: number, mode?: BezierMode) => void
+  updateBezierPreset: (name: string, patch: { name?: string; value?: number; mode?: BezierMode }) => void
   deleteBezierPreset: (name: string) => void
 
   updateGlyph: (char: string, patch: Partial<Pick<Glyph, 'advanceWidth'>>) => void
@@ -179,11 +189,12 @@ export const useStore = create<State & Actions>((set, get) => ({
 
   updateSettings: patch => set(state => withHistory(state, { settings: { ...state.settings, ...patch } })),
 
-  addBezierPreset: (name, value) =>
+  addBezierPreset: (name, value, mode) =>
     set(state => {
       if (!name || state.settings.bezierPresets.some(p => p.name === name)) return state
+      const preset = mode && mode !== 'proportional' ? { name, value, mode } : { name, value }
       return withHistory(state, {
-        settings: { ...state.settings, bezierPresets: [...state.settings.bezierPresets, { name, value }] },
+        settings: { ...state.settings, bezierPresets: [...state.settings.bezierPresets, preset] },
       })
     }),
 
@@ -193,9 +204,13 @@ export const useStore = create<State & Actions>((set, get) => ({
       if (idx < 0) return state
       const renaming = patch.name && patch.name !== name
       if (renaming && state.settings.bezierPresets.some(p => p.name === patch.name)) return state
-      const nextPresets = state.settings.bezierPresets.map((p, i) =>
-        i === idx ? { name: patch.name ?? p.name, value: patch.value ?? p.value } : p,
-      )
+      const nextPresets = state.settings.bezierPresets.map((p, i) => {
+        if (i !== idx) return p
+        const mode = patch.mode ?? p.mode ?? 'proportional'
+        const value = patch.value ?? p.value
+        const name = patch.name ?? p.name
+        return mode === 'proportional' ? { name, value } : { name, value, mode }
+      })
       let nextGlyphs = state.glyphs
       if (renaming) {
         nextGlyphs = { ...state.glyphs }

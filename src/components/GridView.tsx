@@ -66,7 +66,7 @@ function GlyphThumbnail({ shapes, settings, advanceWidth }: GlyphThumbnailProps)
   const w = settings.unitsPerEm
   const x = advanceWidth / 2 - w / 2
   const top = -settings.ascender
-  const d = glyphCombinedPath(shapes, settings.bezierPresets)
+  const d = glyphCombinedPath(shapes, settings.bezierPresets, settings.unitsPerEm)
   return (
     <svg viewBox={`${x} ${top} ${w} ${h}`} className="absolute inset-2 h-[calc(100%-16px)] w-[calc(100%-16px)]">
       <g transform="scale(1, -1)">

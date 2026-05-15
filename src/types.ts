@@ -21,6 +21,22 @@ export const uppercaseFallbackChar = (ch: string): string | undefined =>
   ch.length === 1 && ch >= 'a' && ch <= 'z' ? ch.toUpperCase() : undefined
 
 /**
+ * How a preset's `value` is interpreted when building the rounded-corner arc:
+ *
+ * - `proportional` — `value ∈ [0, 1]`, scaled against the shorter neighboring
+ *   edge length. Far-apart vertices get larger arcs; this is the legacy mode.
+ * - `absolute` — `value` is a corner radius in font design units. Independent
+ *   of neighbor distances, so every corner with the same preset has the same
+ *   visible arc (until the half-min-neighbor cap kicks in).
+ * - `relative` — `value ∈ [0, 1]`, scaled against `unitsPerEm`. Lives between
+ *   the other two: independent of neighbors, but the absolute radius tracks
+ *   the project's em size if it changes.
+ */
+export type BezierMode = 'proportional' | 'absolute' | 'relative'
+
+export const BEZIER_MODES: readonly BezierMode[] = ['proportional', 'absolute', 'relative']
+
+/**
  * A named bezier rounding value, shared across every glyph in the project.
  * Shapes and individual vertices reference a preset by `name` — when the user
  * tweaks a preset, every vertex referencing it visibly updates everywhere.
@@ -31,8 +47,10 @@ export const uppercaseFallbackChar = (ch: string): string | undefined =>
 export interface BezierPreset {
   /** Unique identifier. Display name and reference key. */
   name: string
-  /** Corner rounding amount, 0..1. Same semantics as VCT7's `bezier`. */
+  /** Corner rounding amount. Range depends on `mode`. */
   value: number
+  /** How `value` is interpreted. Absent in legacy files → `'proportional'`. */
+  mode?: BezierMode
 }
 
 /**

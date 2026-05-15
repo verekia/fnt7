@@ -30,23 +30,42 @@ const baseShape = (overrides: Partial<Shape> = {}): Shape => ({
 
 describe('resolveCornerBezier', () => {
   test('falls back to the project default when no override is set', () => {
-    expect(resolveCornerBezier(baseShape(), 0, presets)).toBe(0.5)
+    expect(resolveCornerBezier(baseShape(), 0, presets)).toEqual({ mode: 'proportional', value: 0.5 })
   })
 
   test('uses the shape-level ref when present', () => {
-    expect(resolveCornerBezier(baseShape({ bezierRef: 'sharp' }), 0, presets)).toBe(0.1)
+    expect(resolveCornerBezier(baseShape({ bezierRef: 'sharp' }), 0, presets)).toEqual({
+      mode: 'proportional',
+      value: 0.1,
+    })
   })
 
   test('per-vertex ref wins over the shape ref', () => {
     const shape = baseShape({ bezierRef: 'sharp', pointBezierRefs: { 1: 'round' } })
-    expect(resolveCornerBezier(shape, 1, presets)).toBe(0.9)
+    expect(resolveCornerBezier(shape, 1, presets).value).toBe(0.9)
     // Other corners still pick up the shape-level ref.
-    expect(resolveCornerBezier(shape, 0, presets)).toBe(0.1)
+    expect(resolveCornerBezier(shape, 0, presets).value).toBe(0.1)
   })
 
   test('missing ref falls back to the project default', () => {
     const shape = baseShape({ bezierRef: 'nonexistent' })
-    expect(resolveCornerBezier(shape, 0, presets)).toBe(0.5)
+    expect(resolveCornerBezier(shape, 0, presets).value).toBe(0.5)
+  })
+
+  test('carries the preset mode through resolution', () => {
+    const withModes: BezierPreset[] = [
+      { name: 'default', value: 0.5 },
+      { name: 'abs50', value: 50, mode: 'absolute' },
+      { name: 'rel5', value: 0.05, mode: 'relative' },
+    ]
+    expect(resolveCornerBezier(baseShape({ bezierRef: 'abs50' }), 0, withModes)).toEqual({
+      mode: 'absolute',
+      value: 50,
+    })
+    expect(resolveCornerBezier(baseShape({ bezierRef: 'rel5' }), 0, withModes)).toEqual({
+      mode: 'relative',
+      value: 0.05,
+    })
   })
 })
 

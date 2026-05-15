@@ -73,7 +73,14 @@ function Specimen({ text, glyphs, settings }: SpecimenProps) {
           return (
             <g key={lineIdx} transform={`translate(0, ${lineY})`}>
               {line.map(({ glyph, x }, i) => (
-                <GlyphAt key={`${lineIdx}-${i}`} glyph={glyph} glyphs={glyphs} presets={settings.bezierPresets} x={x} />
+                <GlyphAt
+                  key={`${lineIdx}-${i}`}
+                  glyph={glyph}
+                  glyphs={glyphs}
+                  presets={settings.bezierPresets}
+                  unitsPerEm={settings.unitsPerEm}
+                  x={x}
+                />
               ))}
             </g>
           )
@@ -87,15 +94,17 @@ function GlyphAt({
   glyph,
   glyphs,
   presets,
+  unitsPerEm,
   x,
 }: {
   glyph: Glyph
   glyphs: Record<string, Glyph>
   presets: readonly BezierPreset[]
+  unitsPerEm: number
   x: number
 }) {
   const { shapes } = resolveGlyphRender(glyph, glyphs)
-  const d = glyphCombinedPath(shapes, presets)
+  const d = glyphCombinedPath(shapes, presets, unitsPerEm)
   return (
     <g transform={`translate(${x}, 0)`}>
       <path d={d} fill="currentColor" fillRule="evenodd" />
